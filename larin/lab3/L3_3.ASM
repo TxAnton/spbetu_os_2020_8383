@@ -19,6 +19,7 @@ STR_OWNER db " Owner $"
 STR_SIZE db " Size $"
 STR_FREE_SUCCESS db "Mem freed$";
 STR_FREE_FAIL db "Mem not freed$";
+STR_DEC_NUM db "_______$"
 
 ALLOC_SUCCESS db "Mem allocated$";
 ALLOC_FAIL db "Mem not allocated$";
@@ -84,6 +85,50 @@ PRINT_AS_HEX proc near
 	ret
 PRINT_AS_HEX ENDP
 
+WRD_TO_DEC PROC NEAR
+	push CX
+	push DX
+	mov CX,10
+loop_b: div CX
+	or DL,30h
+	mov [SI],DL
+	dec SI
+	xor DX,DX
+	cmp AX,10
+	jae loop_b
+	cmp AL,00h
+	je endl
+	or AL,30h
+	mov [SI],AL
+endl:	pop DX
+	pop CX
+	ret
+WRD_TO_DEC ENDP
+
+GET_MCB_SIZE PROC NEAR
+	push ax
+	push bx
+	push di
+	push si
+	push dx
+	mov di, offset STR_DEC_NUM
+	mov ax, es:[03h]
+	mov bx, 10h
+	mul bx
+	add di, 6
+	mov si, di
+	call WRD_TO_DEC
+	mov dx, offset STR_DEC_NUM
+	call PRINT
+	call LN
+	pop dx
+	pop si
+	pop di
+	pop bx
+	pop ax
+	ret	
+GET_MCB_SIZE ENDP
+
 PRINT_WORD proc near
 ;AX - word
 	xchg AL,AH
@@ -139,6 +184,7 @@ SUCCESS:
 	call LN
 FREE_END:
 	xor AX,AX
+	xor DX,DX
 ;Alloc mem
 	mov BX, 1000h
 	mov AH, 48h
@@ -156,7 +202,7 @@ ALLOCATE_SUCCESS:
 
 ALLOCATE_DONE:
 	
-;Extended mem
+	;Extended mem
 	mov DX, offset STR_EX_MEM
 	call PRINT
 	mov AL, 30h
@@ -171,7 +217,13 @@ ALLOCATE_DONE:
 	call PRINT_WORD	
 	call LN
 	call LN
-;MCB's
+	
+	;mov dx, offset TABLE_TITLE
+	;call PRINT
+	;call GET_MCB_DATA
+	;call LN
+	
+	;MCB's
 	mov AH, 52h
 	int 21h
 	mov AX, ES:[BX-2]
@@ -193,6 +245,11 @@ NEXT:
 
 	mov DX, offset STR_OWNER
 	call PRINT
+
+	xor AX, AX
+	mov AL, ES:[0h]
+	push AX
+	mov AX, ES:[1h]
 
 	cmp AX, 0h
 	je AREA_FREE
@@ -245,15 +302,21 @@ END_OF_SWITCH:
 	call LN
 
 AFTER_SWITCH:	
+	
+	
+
+
 ;size
 	mov DX, offset STR_SIZE
 	call PRINT
 	
-	mov AX, ES:[3h]
-	mov BX, 10h
-	mul BX	
-	call PRINT_WORD
-	call LN
+	call GET_MCB_SIZE
+	
+	;mov AX, ES:[3h]
+	;mov BX, 10h
+	;mul BX	
+	;call PRINT_WORD
+	;call LN
 	
 	mov CX, 8
 	xor SI, SI
@@ -284,11 +347,13 @@ EXIT:
 	xor AL,AL
 	mov AH,4Ch
 	int 21h
-	
-	STACK_BUF:
+
+
+STACK_BUF:
 		DW 128 dup(0)
 	STACK_BUF_END:
-	
+
+
 TESTPC ENDS
 END START
 	
